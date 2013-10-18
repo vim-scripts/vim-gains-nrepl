@@ -1,0 +1,4 @@
+This is a mirror of http://www.vim.org/scripts/script.php?script_id=4749
+
+This has been intended to be a simple way to talk to nrepl from Vim. I've almost succeed - the only excess here is nREPL sessions support, but it is important - it enables ClojureScript support.
+The project lives here https://github.com/shashurup/vim-gains-nrepl
