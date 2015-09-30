@@ -75,14 +75,53 @@ def close_session(url):
                 nrepl.disconnect(conn)
                 del nrepl_connections[(scheme, host, port)]
 
+def is_our_buffer(buf):
+    return buf.name.endswith('vgnrpl-output.clj')
+
+def find_our_bufffer():
+    for b in vim.buffers:
+        if is_our_buffer(b):
+            return b
+
+def find_our_window():
+    for w in vim.windows:
+        if is_our_buffer(w.buffer):
+            return w.number
+
+def remove_trailing_new_line(subject):
+    if subject and subject[-1] == '\n':
+        return subject[:-1]
+    return subject
+
+def output_data(data, target=sys.stdout):
+    b = find_our_bufffer()
+    if b:
+        b.append(remove_trailing_new_line(data).split('\n'))
+    else:
+        print >>target, data
+
+def scroll_to_end(buf):
+    win_num = find_our_window()
+    if win_num:
+        vim.command(str(win_num) + 'wincmd w')
+        vim.command('normal G')
+        vim.command('wincmd p')
+
+def response_completed():
+    buf = find_our_bufffer()
+    if buf:
+        buf.append(';' + 15 * '=')
+        scroll_to_end(buf)
+
 def print_response(response):
     for msg in response:
         if 'out' in msg:
-            print msg['out']
+            output_data(msg['out'])
         if 'err' in msg:
-            print >>sys.stderr, msg['err']
+            output_data(msg['err'], sys.stderr)
         if 'value' in msg:
-            print msg['value']
+            output_data(msg['value'])
+    response_completed()
 
 def attach_session_url(buf, session_url):
     buf.vars['nrepl_session_url'] = session_url
@@ -140,11 +179,6 @@ def eval(code, first, last):
         if code:
             print_response(nrepl.eval(conn, code, session))
         else:
-            if first == 1 and last == len(vim.current.buffer):
-                name = vim.eval("expand('%:t')")
-                path = vim.eval("expand('%:p')")
-                code = '\n'.join(vim.current.buffer[:])
-                print_response(nrepl.load_file(conn, code, path, name, session))
-            else:
-                code = '\n'.join(vim.current.buffer[first - 1:last])
-                print_response(nrepl.eval(conn, code, session))
+            path = vim.eval("expand('%:p')")
+            code = '\n'.join(vim.current.buffer[first - 1:last])
+            print_response(nrepl.eval(conn, code, session, path=path, line=first))
